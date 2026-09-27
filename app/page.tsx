@@ -884,24 +884,30 @@ export default function HomePage() {
             <div className="hidden print:block">
               <div className="a4-container bg-white p-0">
 
+                {/* Flag-colour accent bar */}
+                <div style={{ height: '5px', width: '100%', marginBottom: '14px', background: 'linear-gradient(to left, #106533, #e7b02c, #dc2626)' }} />
+
                 {/* Document header */}
-                <div className="border-b-2 border-black pb-4 mb-5 text-center">
-                  <h1 style={{ fontSize: '18pt', fontWeight: 'bold' }}>کەل و پەلی زیاد و کەمی جەرد</h1>
-                  <p style={{ fontSize: '12pt', marginTop: '6px', fontWeight: '600' }}>{formState.organization || '_______________'}</p>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', borderBottom: '3px double #000', paddingBottom: '14px', marginBottom: '18px' }}>
+                  <img src="/kdp-logo.png" alt="KDP" style={{ height: '66px', width: '66px', objectFit: 'contain', flexShrink: 0 }} />
+                  <div style={{ textAlign: 'center' }}>
+                    <h1 style={{ fontSize: '18pt', fontWeight: 'bold', margin: 0 }}>کەل و پەلی زیاد و کەمی جەرد</h1>
+                    <p style={{ fontSize: '12pt', marginTop: '6px', fontWeight: '600', color: '#935e14' }}>{formState.organization || '_______________'}</p>
+                  </div>
                 </div>
 
                 {/* Plus items */}
                 <div className="mb-5">
-                  <div className="rounded-t-lg px-4 py-2" style={{ background: '#059669' }}>
+                  <div className="rounded-t-lg px-4 py-2" style={{ background: '#106533' }}>
                     <h2 style={{ color: 'white', fontWeight: 'bold', fontSize: '12pt', margin: 0 }}>
                       کەل و پەلی زیاد (+)
                     </h2>
                   </div>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11pt' }}>
                     <thead>
-                      <tr style={{ background: '#f0fdf4' }}>
+                      <tr style={{ background: '#eefbf1' }}>
                         {['ژمارە', 'جۆری کەلوپەل', 'ناوی کەلوپەل', 'بڕ', 'وێنە', 'تێبینی'].map(h => (
-                          <th key={h} style={{ border: '1px solid #a7f3d0', padding: '8px', textAlign: 'right', fontWeight: '600' }}>{h}</th>
+                          <th key={h} style={{ border: '1px solid #aeeabd', padding: '8px', textAlign: 'right', fontWeight: '600' }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -913,11 +919,11 @@ export default function HomePage() {
                           </td>
                         </tr>
                       ) : formState.rows.filter(r => r.category === 'plus').map((row, i) => (
-                        <tr key={row.id} style={{ background: i % 2 === 0 ? 'white' : '#f8fafc' }}>
+                        <tr key={row.id} style={{ background: i % 2 === 0 ? 'white' : '#fdf9ec' }}>
                           <td style={{ border: '1px solid #e2e8f0', padding: '7px', textAlign: 'center', color: '#64748b' }}>{i + 1}</td>
                           <td style={{ border: '1px solid #e2e8f0', padding: '7px' }}>{row.itemType}</td>
                           <td style={{ border: '1px solid #e2e8f0', padding: '7px', fontWeight: '600' }}>{row.itemName}</td>
-                          <td style={{ border: '1px solid #e2e8f0', padding: '7px', textAlign: 'center', fontWeight: 'bold', color: '#065f46' }}>{row.quantity}</td>
+                          <td style={{ border: '1px solid #e2e8f0', padding: '7px', textAlign: 'center', fontWeight: 'bold', color: '#106533' }}>{row.quantity}</td>
                           <td style={{ border: '1px solid #e2e8f0', padding: '7px', textAlign: 'center' }}>
                             {row.imageUrl
                               ? <img src={row.imageUrl} alt="" style={{ maxHeight: '60px', objectFit: 'contain', display: 'inline-block' }} />
@@ -953,7 +959,7 @@ export default function HomePage() {
                           </td>
                         </tr>
                       ) : formState.rows.filter(r => r.category === 'minus').map((row, i) => (
-                        <tr key={row.id} style={{ background: i % 2 === 0 ? 'white' : '#f8fafc' }}>
+                        <tr key={row.id} style={{ background: i % 2 === 0 ? 'white' : '#fdf9ec' }}>
                           <td style={{ border: '1px solid #e2e8f0', padding: '7px', textAlign: 'center', color: '#64748b' }}>{i + 1}</td>
                           <td style={{ border: '1px solid #e2e8f0', padding: '7px' }}>{row.itemType}</td>
                           <td style={{ border: '1px solid #e2e8f0', padding: '7px', fontWeight: '600' }}>{row.itemName}</td>
@@ -968,12 +974,17 @@ export default function HomePage() {
 
                 {/* Message to admin */}
                 {formState.messageToAdmin && (
-                  <div className="mb-5 rounded-xl border border-amber-200 p-4" style={{ fontSize: '11pt' }}>
-                    <span className="font-semibold text-amber-800">پەیام بۆ سوپەرئەدمین: </span>
+                  <div className="mb-5 rounded-xl p-4" style={{ fontSize: '11pt', border: '1px solid #f4de8f', background: '#fdf9ec' }}>
+                    <span className="font-semibold" style={{ color: '#935e14' }}>پەیام بۆ سوپەرئەدمین: </span>
                     <span>{formState.messageToAdmin}</span>
                   </div>
                 )}
 
+                {/* Footer */}
+                <div style={{ marginTop: '24px', paddingTop: '10px', borderTop: '1px solid #f4de8f', display: 'flex', justifyContent: 'space-between', fontSize: '8pt', color: '#94a3b8' }}>
+                  <span>پارتی دیموکراتی کوردستان — سیستەمی جەردی کەل و پەل</span>
+                  <span>{new Date().toLocaleString('ar-IQ')}</span>
+                </div>
 
               </div>
             </div>
@@ -1180,16 +1191,22 @@ export default function HomePage() {
               </div>
             )}
 
-            <div ref={a4Ref} className="print-area a4-container mx-auto bg-white shadow-paper border border-slate-200 p-[15mm]">
+            <div ref={a4Ref} className="print-area a4-container mx-auto bg-white shadow-paper border border-gold-200 p-[15mm]">
 
-              {/* Document header — title and organisation only */}
-              <div className="border-b-2 border-black pb-4 mb-3 text-center">
-                <h1 className="text-[22pt] font-bold text-black leading-tight">کەل و پەلی زیاد و کەمی جەرد</h1>
-                <p className="text-base font-semibold text-slate-800 mt-2">{selectedForm.organization}</p>
+              {/* Flag-colour accent bar */}
+              <div className="mb-4 h-[5px] w-full rounded-full bg-gradient-to-l from-kdpgreen-700 via-gold-400 to-rose-600" />
+
+              {/* Document header — logo, title and organisation */}
+              <div className="mb-3 flex items-center justify-center gap-4 pb-4" style={{ borderBottom: '3px double #000' }}>
+                <img src="/kdp-logo.png" alt="KDP" className="h-16 w-16 shrink-0 object-contain" />
+                <div className="text-center">
+                  <h1 className="text-[22pt] font-bold text-black leading-tight">کەل و پەلی زیاد و کەمی جەرد</h1>
+                  <p className="text-base font-semibold text-gold-800 mt-2">{selectedForm.organization}</p>
+                </div>
               </div>
 
               {/* Archival metadata — date and submitter; frozen at submission time */}
-              <div className="mb-4 flex flex-wrap justify-between gap-2 border-b border-slate-200 pb-2 text-xs text-slate-500">
+              <div className="mb-4 flex flex-wrap justify-between gap-2 border-b border-gold-100 pb-2 text-xs text-slate-500">
                 <span>
                   <span className="font-semibold text-slate-700">بەرواری تۆمارکردن: </span>
                   {formatDate(selectedForm.created_at)}
@@ -1288,6 +1305,11 @@ export default function HomePage() {
                 </div>
               )}
 
+              {/* Footer */}
+              <div className="mt-6 flex justify-between border-t border-gold-100 pt-2.5 text-[8pt] text-slate-400">
+                <span>پارتی دیموکراتی کوردستان — سیستەمی جەردی کەل و پەل</span>
+                <span>{formatDate(selectedForm.created_at)} · {STATUS[selectedForm.status]?.label ?? selectedForm.status}</span>
+              </div>
 
             </div>{/* /a4-container */}
           </div>
