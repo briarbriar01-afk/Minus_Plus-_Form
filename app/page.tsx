@@ -22,7 +22,7 @@ type ItemRow = {
 
 type Msg = { type: 'success' | 'error'; text: string } | null;
 
-type PageView = 'form' | 'success' | 'myForms' | 'formDetail' | 'kanban' | 'items';
+type PageView = 'form' | 'success' | 'myForms' | 'formDetail';
 
 type FormSummary = {
   id: string;
@@ -58,18 +58,6 @@ type FormDetail = FormSummary & {
   message_to_admin: string | null;
   plusItems: PlusItem[];
   minusItems: MinusItem[];
-};
-
-type AllItem = {
-  id: string;
-  form_id: string;
-  category: ItemCategory;
-  item_type: string;
-  item_name: string;
-  quantity: number;
-  notes: string | null;
-  system_code?: string | null;
-  created_at: string;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -159,17 +147,6 @@ export default function HomePage() {
   const [detailError, setDetailError] = useState<string | null>(null);
   const a4Ref = useRef<HTMLDivElement>(null);
 
-  // ── Admin: direct items ───────────────────────────────────────────────────
-  const [allItems, setAllItems] = useState<AllItem[]>([]);
-  const [addCat, setAddCat] = useState<ItemCategory>('plus');
-  const [addType, setAddType] = useState('');
-  const [addName, setAddName] = useState('');
-  const [addQty, setAddQty] = useState('');
-  const [addCode, setAddCode] = useState('');
-  const [addNotes, setAddNotes] = useState('');
-  const [isAdding, setIsAdding] = useState(false);
-  const [itemsMsg, setItemsMsg] = useState<Msg>(null);
-
   const isSuperAdmin =
     Boolean(user?.email) &&
     user.email.toLowerCase() === superAdminEmail.toLowerCase();
@@ -188,8 +165,7 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!user) return;
-    if (activePage === 'myForms' || activePage === 'kanban') fetchForms();
-    if (activePage === 'items') fetchAllItems();
+    if (activePage === 'myForms') fetchForms();
   }, [user, activePage]);
 
   // ── Restore an in-progress draft (once per signed-in user) ───────────────────
@@ -340,19 +316,6 @@ export default function HomePage() {
     setActivePage('formDetail');
   };
 
-  // ── Fetch all items (admin) ───────────────────────────────────────────────
-  const fetchAllItems = async () => {
-    const [plusRes, minusRes] = await Promise.all([
-      supabase.from('plus_items').select('*').order('created_at', { ascending: false }),
-      supabase.from('minus_items').select('*').order('created_at', { ascending: false }),
-    ]);
-    const combined: AllItem[] = [
-      ...(plusRes.data ?? []).map((i: any) => ({ ...i, category: 'plus' as const })),
-      ...(minusRes.data ?? []).map((i: any) => ({ ...i, category: 'minus' as const })),
-    ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    setAllItems(combined);
-  };
-
   // ── Form row helpers ──────────────────────────────────────────────────────
   const addRow = (cat: ItemCategory) =>
     setFormState(p => ({ ...p, rows: [...p.rows, defaultRow(cat)] }));
@@ -489,46 +452,6 @@ export default function HomePage() {
     }
   };
 
-  // ── Admin: add direct item ────────────────────────────────────────────────
-  const handleAddItem = async () => {
-    if (!addType.trim() || !addName.trim()) {
-      setItemsMsg({ type: 'error', text: 'تکایە جۆر و ناوی کەل و پەل بنووسە.' }); return;
-    }
-    const qty = Number(addQty);
-    if (!addQty || isNaN(qty) || qty <= 0) {
-      setItemsMsg({ type: 'error', text: 'ژمارە دەبێت ژمارەیەکی دروست بێت.' }); return;
-    }
-    if (addCat === 'minus' && !addCode.trim()) {
-      setItemsMsg({ type: 'error', text: 'تکایە کۆدی سیستەم بنووسە.' }); return;
-    }
-    setIsAdding(true);
-    setItemsMsg(null);
-    try {
-      const { data: formRec, error: formErr } = await supabase
-        .from('inventory_forms')
-        .insert([{ organization: 'ڕاستەوخۆ', created_by: user.id, created_by_email: user.email, status: 'approved', message_to_admin: null }])
-        .select('id').single();
-      if (formErr || !formRec) throw formErr ?? new Error('هەڵە');
-      if (addCat === 'plus') {
-        await supabase.from('plus_items').insert([{ form_id: formRec.id, item_type: addType, item_name: addName, quantity: qty, notes: addNotes || null, image_path: null }]);
-      } else {
-        await supabase.from('minus_items').insert([{ form_id: formRec.id, item_type: addType, item_name: addName, quantity: qty, system_code: addCode, notes: addNotes || null }]);
-      }
-      setItemsMsg({ type: 'success', text: 'کەل و پەل بە سەرکەوتوویی زیادکرا.' });
-      setAddType(''); setAddName(''); setAddQty(''); setAddCode(''); setAddNotes('');
-      fetchAllItems();
-    } catch (e) {
-      setItemsMsg({ type: 'error', text: `هەڵەیەک ڕوویدا: ${(e as Error).message}` });
-    } finally {
-      setIsAdding(false);
-    }
-  };
-
-  const handleDeleteItem = async (id: string, cat: ItemCategory) => {
-    await supabase.from(cat === 'plus' ? 'plus_items' : 'minus_items').delete().eq('id', id);
-    fetchAllItems();
-  };
-
   // ── Download form rows as Excel ───────────────────────────────────────────
   const handleDownloadExcel = () => {
     const workbook = XLSX.utils.book_new();
@@ -658,14 +581,10 @@ export default function HomePage() {
         </header>
 
         {/* ── Navigation ── */}
-        <nav className="no-print mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <nav className="no-print mb-5 grid grid-cols-2 gap-3">
           {[
             { key: 'form',    label: 'فۆرمی تازە',                         desc: 'کەل و پەلی جیاوازی تۆمار بکە' },
             { key: 'myForms', label: isSuperAdmin ? 'هەموو فۆرمەکان' : 'فۆرمەکانم', desc: 'فۆرمە پێشکەشکراوەکان ببینە' },
-            ...(isSuperAdmin ? [
-              { key: 'kanban', label: 'کانبان', desc: 'شوێنکەوتنی ئاست' },
-              { key: 'items',  label: 'کەل و پەلەکان', desc: 'زیادکردن و سڕینەوە' },
-            ] : []),
           ].map(item => (
             <button key={item.key} type="button"
               onClick={() => goTo(item.key as PageView)}
@@ -842,41 +761,46 @@ export default function HomePage() {
               )}
 
               {/* Action buttons */}
-              <div className="grid gap-3 sm:grid-cols-5 no-print">
-                <button type="button" onClick={() => submitForm('new')} disabled={isSaving}
-                  className="rounded-2xl bg-gold-600 px-5 py-3 font-semibold text-white hover:bg-gold-700 disabled:bg-slate-400 transition">
-                  {isSaving ? 'چاوەڕوانبکە...' : 'پاشەکەوتکردن (ڕەشنووس)'}
-                </button>
-                <button type="button" onClick={() => submitForm('sent')} disabled={isSaving}
-                  className="rounded-2xl bg-gold-600 px-5 py-3 font-semibold text-white hover:bg-gold-700 disabled:bg-slate-400 transition">
-                  {isSaving ? 'چاوەڕوانبکە...' : 'ناردن بۆ سوپەرئەدمین'}
-                </button>
-                <button type="button"
-                  onClick={() => {
-                    setFormState(blankForm);
-                    setSubmitMsg(null);
-                    setDraftRestored(false);
-                    if (user) localStorage.removeItem(DRAFT_KEY_PREFIX + user.id);
-                  }}
-                  className="rounded-2xl border border-slate-300 bg-white px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50 transition">
-                  پاككردنەوە
-                </button>
-                {/* Excel download */}
-                <button type="button" onClick={handleDownloadExcel}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-teal-600 px-5 py-3 font-semibold text-white hover:bg-teal-700 transition">
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  Excel
-                </button>
-                {/* PDF export */}
-                <button type="button" onClick={() => window.print()}
-                  className="bg-[#0e9488] hover:bg-teal-700 text-white px-6 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-sm">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-                  </svg>
-                  <span>داگرتنی PDF</span>
-                </button>
+              <div className="no-print grid gap-2.5">
+                {/* Primary: send / save draft */}
+                <div className="grid gap-2.5 sm:grid-cols-2">
+                  <button type="button" onClick={() => submitForm('sent')} disabled={isSaving}
+                    className="rounded-2xl bg-gold-600 px-5 py-3.5 font-semibold text-white shadow-sm hover:bg-gold-700 disabled:bg-slate-400 transition">
+                    {isSaving ? 'چاوەڕوانبکە...' : 'ناردن بۆ سوپەرئەدمین'}
+                  </button>
+                  <button type="button" onClick={() => submitForm('new')} disabled={isSaving}
+                    className="rounded-2xl border border-gold-400 bg-gold-50 px-5 py-3.5 font-semibold text-gold-800 hover:bg-gold-100 disabled:opacity-50 transition">
+                    {isSaving ? 'چاوەڕوانبکە...' : 'پاشەکەوتکردن (ڕەشنووس)'}
+                  </button>
+                </div>
+
+                {/* Secondary: clear / export */}
+                <div className="grid gap-2 sm:grid-cols-3">
+                  <button type="button"
+                    onClick={() => {
+                      setFormState(blankForm);
+                      setSubmitMsg(null);
+                      setDraftRestored(false);
+                      if (user) localStorage.removeItem(DRAFT_KEY_PREFIX + user.id);
+                    }}
+                    className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition">
+                    پاككردنەوە
+                  </button>
+                  <button type="button" onClick={handleDownloadExcel}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-teal-300 bg-white px-4 py-2.5 text-sm font-semibold text-teal-700 hover:bg-teal-50 transition">
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Excel
+                  </button>
+                  <button type="button" onClick={() => window.print()}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-teal-300 bg-white px-4 py-2.5 text-sm font-semibold text-teal-700 hover:bg-teal-50 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-4 w-4">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                    </svg>
+                    داگرتنی PDF
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1312,162 +1236,6 @@ export default function HomePage() {
               </div>
 
             </div>{/* /a4-container */}
-          </div>
-        )}
-
-        {/* ════════════════════════════════════════════════════════════════ */}
-        {/* VIEW: Kanban (superadmin only)                                   */}
-        {/* ════════════════════════════════════════════════════════════════ */}
-        {activePage === 'kanban' && isSuperAdmin && (
-          <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-slate-900">کانبانی فۆرمەکان</h2>
-              <button onClick={fetchForms}
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-50">
-                نوێکردنەوە
-              </button>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {STATUS_FLOW.map(key => {
-                const cfg = STATUS[key];
-                const colForms = forms.filter(f => f.status === key);
-                return (
-                  <div key={key} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="mb-4 flex items-center justify-between">
-                      <h3 className="font-semibold text-slate-800">{cfg.label}</h3>
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${cfg.bg} ${cfg.text}`}>
-                        {colForms.length}
-                      </span>
-                    </div>
-                    <div className="space-y-3">
-                      {colForms.map(form => (
-                        <div key={form.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                          <p className="font-semibold text-sm text-slate-900">{form.organization}</p>
-                          <p className="text-xs text-slate-500 mt-0.5">{form.created_by_email}</p>
-                          <p className="text-xs text-slate-400 mt-0.5">{formatDate(form.created_at)}</p>
-                          <div className="mt-3 flex flex-wrap gap-1.5">
-                            <button onClick={() => openFormDetail(form.id, 'kanban')}
-                              className="rounded-full bg-gold-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-gold-700">
-                              بینین
-                            </button>
-                            {STATUS_FLOW.filter(s => s !== key).map(s => (
-                              <button key={s} onClick={() => changeStatus(form.id, s)}
-                                className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${STATUS[s].bg} ${STATUS[s].text}`}>
-                                → {STATUS[s].label}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                      {colForms.length === 0 && (
-                        <div className="rounded-2xl border-2 border-dashed border-slate-300 p-5 text-center text-sm text-slate-400">
-                          هیچ فۆرمێک نییە
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* ════════════════════════════════════════════════════════════════ */}
-        {/* VIEW: Items management (superadmin only)                         */}
-        {/* ════════════════════════════════════════════════════════════════ */}
-        {activePage === 'items' && isSuperAdmin && (
-          <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-bold text-slate-900 mb-6">زیادکردن و سڕینەوەی کەل و پەل</h2>
-
-            {/* Add form */}
-            <div className="mb-8 rounded-2xl border border-violet-200 bg-violet-50 p-5">
-              <h3 className="font-semibold text-slate-900 mb-4">زیادکردنی کەل و پەلی نوێ</h3>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <label className="block text-sm font-medium text-slate-700">
-                  جۆری تۆمار
-                  <div className="mt-1.5 flex gap-2">
-                    {(['plus', 'minus'] as const).map(cat => (
-                      <button key={cat} type="button" onClick={() => setAddCat(cat)}
-                        className={`flex-1 rounded-full py-2 text-sm font-semibold transition ${
-                          addCat === cat
-                            ? (cat === 'plus' ? 'bg-gold-600 text-white' : 'bg-rose-600 text-white')
-                            : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'
-                        }`}>
-                        {cat === 'plus' ? 'زیادە (+)' : 'کەمبوو (-)'}
-                      </button>
-                    ))}
-                  </div>
-                </label>
-                {[
-                  { label: 'جۆری کەل و پەل', val: addType, set: setAddType },
-                  { label: 'ناوی کەل و پەل', val: addName, set: setAddName },
-                  { label: 'ژمارە',           val: addQty,  set: setAddQty, type: 'number' },
-                  ...(addCat === 'minus' ? [{ label: 'کۆدی سیستەم', val: addCode, set: setAddCode }] : []),
-                  { label: 'تێبینی', val: addNotes, set: setAddNotes },
-                ].map(field => (
-                  <label key={field.label} className="block text-sm font-medium text-slate-700">
-                    {field.label}
-                    <input type={(field as any).type ?? 'text'} value={field.val}
-                      onChange={e => field.set(e.target.value)} placeholder="بنووسە..."
-                      className="mt-1.5 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100" />
-                  </label>
-                ))}
-              </div>
-              {itemsMsg && (
-                <div className={`mt-4 rounded-2xl p-3 text-sm ${itemsMsg.type === 'success' ? 'bg-gold-50 text-gold-800' : 'bg-rose-50 text-rose-800'}`}>
-                  {itemsMsg.text}
-                </div>
-              )}
-              <button type="button" onClick={handleAddItem} disabled={isAdding}
-                className="mt-4 rounded-2xl bg-violet-600 px-6 py-3 font-semibold text-white hover:bg-violet-700 disabled:bg-slate-400 transition">
-                {isAdding ? 'چاوەڕوانبکە...' : 'زیادکردن'}
-              </button>
-            </div>
-
-            {/* Items list */}
-            <h3 className="font-semibold text-slate-900 mb-4">هەموو کەل و پەلەکان ({allItems.length})</h3>
-            <div className="overflow-x-auto">
-              <table className="min-w-full border-separate border-spacing-0 text-right text-sm">
-                <thead>
-                  <tr>
-                    {['جۆر', 'جۆری کەل و پەل', 'ناوی کەل و پەل', 'ژمارە', 'کۆدی سیستەم', 'تێبینی', 'بەروار', ''].map(h => (
-                      <th key={h} className="border border-slate-200 bg-slate-50 px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {allItems.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="border border-slate-200 p-8 text-center text-slate-400">
-                        هیچ کەل و پەلێک نییە.
-                      </td>
-                    </tr>
-                  ) : allItems.map(item => (
-                    <tr key={`${item.category}-${item.id}`} className="odd:bg-white even:bg-slate-50">
-                      <td className="border border-slate-200 px-3 py-2.5">
-                        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${item.category === 'plus' ? 'bg-gold-100 text-gold-800' : 'bg-rose-100 text-rose-800'}`}>
-                          {item.category === 'plus' ? 'زیادە' : 'کەمبوو'}
-                        </span>
-                      </td>
-                      <td className="border border-slate-200 px-3 py-2.5">{item.item_type}</td>
-                      <td className="border border-slate-200 px-3 py-2.5 font-medium">{item.item_name}</td>
-                      <td className="border border-slate-200 px-3 py-2.5 text-center font-bold">{item.quantity}</td>
-                      <td className="border border-slate-200 px-3 py-2.5 font-mono text-xs">{item.system_code ?? '—'}</td>
-                      <td className="border border-slate-200 px-3 py-2.5 text-slate-500">{item.notes ?? '—'}</td>
-                      <td className="border border-slate-200 px-3 py-2.5 text-xs text-slate-400 whitespace-nowrap">
-                        {formatDate(item.created_at)}
-                      </td>
-                      <td className="border border-slate-200 px-3 py-2.5 text-center">
-                        <button onClick={() => handleDeleteItem(item.id, item.category)}
-                          className="rounded-xl bg-rose-500 px-3 py-2 text-xs font-semibold text-white hover:bg-rose-600">
-                          سڕینەوە
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
           </div>
         )}
 
