@@ -155,12 +155,12 @@ th {
   }
 
   /* ── Preserve colored section header backgrounds ── */
-  .bg-emerald-600 {
+  .bg-gold-600 {
     background-color: #059669 !important;
   }
 
-  .bg-emerald-600,
-  .bg-emerald-600 * {
+  .bg-gold-600,
+  .bg-gold-600 * {
     color: white !important;
   }
 

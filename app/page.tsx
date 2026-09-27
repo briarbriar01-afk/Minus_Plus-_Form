@@ -78,7 +78,7 @@ const STATUS: Record<string, { label: string; bg: string; text: string }> = {
   new:      { label: 'نوێ',           bg: 'bg-sky-100',      text: 'text-sky-800' },
   sent:     { label: 'ناردراو',       bg: 'bg-amber-100',   text: 'text-amber-800' },
   reviewed: { label: 'هەڵسەنگاندراو', bg: 'bg-violet-100',  text: 'text-violet-800' },
-  approved: { label: 'پەسەندکراو',    bg: 'bg-emerald-100', text: 'text-emerald-800' },
+  approved: { label: 'پەسەندکراو',    bg: 'bg-indigo-100', text: 'text-indigo-800' },
 };
 
 const STATUS_FLOW = ['new', 'sent', 'reviewed', 'approved'];
@@ -586,7 +586,7 @@ export default function HomePage() {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
         <div className="w-full max-w-md overflow-hidden rounded-[28px] border border-gold-200 bg-white shadow-sm rtl">
-          <div className="h-1.5 w-full bg-gradient-to-l from-kdpgreen-600 via-gold-400 to-rose-600" />
+          <div className="h-1.5 w-full bg-gradient-to-l from-gold-500 to-rose-600" />
           <div className="p-8">
           <div className="mb-6 flex items-center gap-3">
             <img src="/kdp-logo.png" alt="KDP" className="h-14 w-14 shrink-0 object-contain" />
@@ -613,7 +613,7 @@ export default function HomePage() {
                 className="mt-1 w-full rounded-2xl border border-slate-300 px-4 py-3 outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-100" />
             </label>
             {authMsg && (
-              <div className={`rounded-2xl p-3 text-sm ${authMsg.type === 'success' ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'}`}>
+              <div className={`rounded-2xl p-3 text-sm ${authMsg.type === 'success' ? 'bg-gold-50 text-gold-800' : 'bg-rose-50 text-rose-800'}`}>
                 {authMsg.text}
               </div>
             )}
@@ -635,7 +635,7 @@ export default function HomePage() {
 
         {/* ── Header ── */}
         <header className="no-print mb-5 overflow-hidden rounded-[26px] border border-gold-200 bg-white shadow-sm">
-          <div className="h-1.5 w-full bg-gradient-to-l from-kdpgreen-600 via-gold-400 to-rose-600" />
+          <div className="h-1.5 w-full bg-gradient-to-l from-gold-500 to-rose-600" />
           <div className="flex flex-wrap items-center justify-between gap-4 p-5">
             <div className="flex items-center gap-3">
               <img src="/kdp-logo.png" alt="KDP" className="h-12 w-12 shrink-0 object-contain" />
@@ -705,7 +705,7 @@ export default function HomePage() {
               <h2 className="text-lg font-bold text-slate-900">فۆرمی تازەی جیاوازی جەرد</h2>
               <div className="flex gap-2">
                 <button type="button" onClick={() => addRow('plus')}
-                  className="rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700">
+                  className="rounded-2xl bg-gold-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-gold-700">
                   + زیادە
                 </button>
                 <button type="button" onClick={() => addRow('minus')}
@@ -727,32 +727,32 @@ export default function HomePage() {
 
               {/* Plus rows table */}
               {formState.rows.filter(r => r.category === 'plus').length > 0 && (
-                <div className="overflow-x-auto rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
-                  <h3 className="mb-3 font-semibold text-emerald-800 text-sm">کەل و پەلی زیادە (+)</h3>
+                <div className="overflow-x-auto rounded-2xl border border-gold-200 bg-gold-50/60 p-4">
+                  <h3 className="mb-3 font-semibold text-gold-800 text-sm">کەل و پەلی زیادە (+)</h3>
                   <table className="min-w-full border-separate border-spacing-0 text-right text-sm">
                     <thead>
                       <tr>
                         {['جۆری کەل و پەل', 'ناوی کەل و پەل', 'ژمارە', 'وێنە', 'تێبینی', ''].map(h => (
-                          <th key={h} className="border border-emerald-200 bg-emerald-100 px-3 py-2.5 font-semibold text-emerald-900 whitespace-nowrap">{h}</th>
+                          <th key={h} className="border border-gold-200 bg-gold-100 px-3 py-2.5 font-semibold text-gold-900 whitespace-nowrap">{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {formState.rows.filter(r => r.category === 'plus').map(row => (
                         <tr key={row.id} className="bg-white">
-                          <td className="border border-emerald-200 p-1.5">
+                          <td className="border border-gold-200 p-1.5">
                             <input value={row.itemType} onChange={e => updateRow(row.id, { itemType: e.target.value })}
                               className="w-full min-w-[120px] rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-gold-500" />
                           </td>
-                          <td className="border border-emerald-200 p-1.5">
+                          <td className="border border-gold-200 p-1.5">
                             <input value={row.itemName} onChange={e => updateRow(row.id, { itemName: e.target.value })}
                               className="w-full min-w-[140px] rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-gold-500" />
                           </td>
-                          <td className="border border-emerald-200 p-1.5">
+                          <td className="border border-gold-200 p-1.5">
                             <input type="number" min={0} value={row.quantity} onChange={e => updateRow(row.id, { quantity: e.target.value })}
                               className="w-24 rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-gold-500" />
                           </td>
-                          <td className="border border-emerald-200 p-1.5">
+                          <td className="border border-gold-200 p-1.5">
                             <input type="file" accept="image/*"
                               onChange={e => {
                                 const file = e.target.files?.[0] ?? null;
@@ -761,11 +761,11 @@ export default function HomePage() {
                               className="w-full text-xs file:rounded-full file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-slate-700" />
                             {row.imageUrl && <img src={row.imageUrl} alt="" className="mt-1.5 h-14 object-contain" />}
                           </td>
-                          <td className="border border-emerald-200 p-1.5">
+                          <td className="border border-gold-200 p-1.5">
                             <input value={row.notes} onChange={e => updateRow(row.id, { notes: e.target.value })}
                               className="w-full min-w-[120px] rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-gold-500" />
                           </td>
-                          <td className="border border-emerald-200 p-1.5 text-center">
+                          <td className="border border-gold-200 p-1.5 text-center">
                             <button onClick={() => removeRow(row.id)}
                               className="rounded-xl bg-rose-500 px-3 py-2 text-xs font-semibold text-white hover:bg-rose-600">
                               سڕ
@@ -836,7 +836,7 @@ export default function HomePage() {
               </label>
 
               {submitMsg && (
-                <div className={`rounded-2xl p-4 text-sm ${submitMsg.type === 'success' ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'}`}>
+                <div className={`rounded-2xl p-4 text-sm ${submitMsg.type === 'success' ? 'bg-gold-50 text-gold-800' : 'bg-rose-50 text-rose-800'}`}>
                   {submitMsg.text}
                 </div>
               )}
@@ -848,7 +848,7 @@ export default function HomePage() {
                   {isSaving ? 'چاوەڕوانبکە...' : 'پاشەکەوتکردن (ڕەشنووس)'}
                 </button>
                 <button type="button" onClick={() => submitForm('sent')} disabled={isSaving}
-                  className="rounded-2xl bg-emerald-600 px-5 py-3 font-semibold text-white hover:bg-emerald-700 disabled:bg-slate-400 transition">
+                  className="rounded-2xl bg-gold-600 px-5 py-3 font-semibold text-white hover:bg-gold-700 disabled:bg-slate-400 transition">
                   {isSaving ? 'چاوەڕوانبکە...' : 'ناردن بۆ سوپەرئەدمین'}
                 </button>
                 <button type="button"
@@ -885,7 +885,7 @@ export default function HomePage() {
               <div className="a4-container bg-white p-0">
 
                 {/* Flag-colour accent bar */}
-                <div style={{ height: '5px', width: '100%', marginBottom: '14px', background: 'linear-gradient(to left, #106533, #e7b02c, #dc2626)' }} />
+                <div style={{ height: '5px', width: '100%', marginBottom: '14px', background: 'linear-gradient(to left, #e7b02c, #d99a1b, #dc2626)' }} />
 
                 {/* Document header */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', borderBottom: '3px double #000', paddingBottom: '14px', marginBottom: '18px' }}>
@@ -898,16 +898,16 @@ export default function HomePage() {
 
                 {/* Plus items */}
                 <div className="mb-5">
-                  <div className="rounded-t-lg px-4 py-2" style={{ background: '#106533' }}>
+                  <div className="rounded-t-lg px-4 py-2" style={{ background: '#935e14' }}>
                     <h2 style={{ color: 'white', fontWeight: 'bold', fontSize: '12pt', margin: 0 }}>
                       کەل و پەلی زیاد (+)
                     </h2>
                   </div>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11pt' }}>
                     <thead>
-                      <tr style={{ background: '#eefbf1' }}>
+                      <tr style={{ background: '#faf0cb' }}>
                         {['ژمارە', 'جۆری کەلوپەل', 'ناوی کەلوپەل', 'بڕ', 'وێنە', 'تێبینی'].map(h => (
-                          <th key={h} style={{ border: '1px solid #aeeabd', padding: '8px', textAlign: 'right', fontWeight: '600' }}>{h}</th>
+                          <th key={h} style={{ border: '1px solid #f4de8f', padding: '8px', textAlign: 'right', fontWeight: '600' }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -923,7 +923,7 @@ export default function HomePage() {
                           <td style={{ border: '1px solid #e2e8f0', padding: '7px', textAlign: 'center', color: '#64748b' }}>{i + 1}</td>
                           <td style={{ border: '1px solid #e2e8f0', padding: '7px' }}>{row.itemType}</td>
                           <td style={{ border: '1px solid #e2e8f0', padding: '7px', fontWeight: '600' }}>{row.itemName}</td>
-                          <td style={{ border: '1px solid #e2e8f0', padding: '7px', textAlign: 'center', fontWeight: 'bold', color: '#106533' }}>{row.quantity}</td>
+                          <td style={{ border: '1px solid #e2e8f0', padding: '7px', textAlign: 'center', fontWeight: 'bold', color: '#794c17' }}>{row.quantity}</td>
                           <td style={{ border: '1px solid #e2e8f0', padding: '7px', textAlign: 'center' }}>
                             {row.imageUrl
                               ? <img src={row.imageUrl} alt="" style={{ maxHeight: '60px', objectFit: 'contain', display: 'inline-block' }} />
@@ -998,8 +998,8 @@ export default function HomePage() {
         {/* ════════════════════════════════════════════════════════════════ */}
         {activePage === 'success' && (
           <div className="rounded-[24px] border border-slate-200 bg-white p-10 shadow-sm text-center">
-            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100">
-              <svg className="h-10 w-10 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-gold-100">
+              <svg className="h-10 w-10 text-gold-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
             </div>
@@ -1194,7 +1194,7 @@ export default function HomePage() {
             <div ref={a4Ref} className="print-area a4-container mx-auto bg-white shadow-paper border border-gold-200 p-[15mm]">
 
               {/* Flag-colour accent bar */}
-              <div className="mb-4 h-[5px] w-full rounded-full bg-gradient-to-l from-kdpgreen-700 via-gold-400 to-rose-600" />
+              <div className="mb-4 h-[5px] w-full rounded-full bg-gradient-to-l from-gold-500 to-rose-600" />
 
               {/* Document header — logo, title and organisation */}
               <div className="mb-3 flex items-center justify-center gap-4 pb-4" style={{ borderBottom: '3px double #000' }}>
@@ -1219,14 +1219,14 @@ export default function HomePage() {
 
               {/* Plus items table */}
               <div className="mb-5">
-                <div className="rounded-t-xl bg-emerald-600 px-4 py-2.5">
+                <div className="rounded-t-xl bg-gold-600 px-4 py-2.5">
                   <h2 className="font-bold text-white text-sm">کەل و پەلی زیاد (+)</h2>
                 </div>
                 <table className="w-full border-separate border-spacing-0 text-right text-sm">
                   <thead>
-                    <tr className="bg-emerald-50">
+                    <tr className="bg-gold-50">
                       {['#', 'جۆری کەل و پەل', 'ناوی کەل و پەل', 'ژمارە', 'وێنە', 'تێبینی'].map((h, i) => (
-                        <th key={h} className={`border border-emerald-200 px-3 py-2.5 font-semibold text-emerald-900 ${i === 0 ? 'w-10 text-center' : ''}`}>{h}</th>
+                        <th key={h} className={`border border-gold-200 px-3 py-2.5 font-semibold text-gold-900 ${i === 0 ? 'w-10 text-center' : ''}`}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -1242,11 +1242,11 @@ export default function HomePage() {
                         ? supabase.storage.from('inventory_images').getPublicUrl(item.image_path).data.publicUrl
                         : null;
                       return (
-                        <tr key={item.id} className={i % 2 === 0 ? 'bg-white' : 'bg-emerald-50/30'}>
+                        <tr key={item.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gold-50/30'}>
                           <td className="border border-slate-200 px-3 py-2.5 text-center text-slate-500 font-medium">{i + 1}</td>
                           <td className="border border-slate-200 px-3 py-2.5">{item.item_type}</td>
                           <td className="border border-slate-200 px-3 py-2.5 font-semibold">{item.item_name}</td>
-                          <td className="border border-slate-200 px-3 py-2.5 text-center font-bold text-emerald-700">{item.quantity}</td>
+                          <td className="border border-slate-200 px-3 py-2.5 text-center font-bold text-gold-700">{item.quantity}</td>
                           <td className="border border-slate-200 px-3 py-2.5 text-center">
                             {imgUrl
                               ? <img src={imgUrl} alt="وێنەی کەل و پەل"
@@ -1390,7 +1390,7 @@ export default function HomePage() {
                       <button key={cat} type="button" onClick={() => setAddCat(cat)}
                         className={`flex-1 rounded-full py-2 text-sm font-semibold transition ${
                           addCat === cat
-                            ? (cat === 'plus' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white')
+                            ? (cat === 'plus' ? 'bg-gold-600 text-white' : 'bg-rose-600 text-white')
                             : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'
                         }`}>
                         {cat === 'plus' ? 'زیادە (+)' : 'کەمبوو (-)'}
@@ -1414,7 +1414,7 @@ export default function HomePage() {
                 ))}
               </div>
               {itemsMsg && (
-                <div className={`mt-4 rounded-2xl p-3 text-sm ${itemsMsg.type === 'success' ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'}`}>
+                <div className={`mt-4 rounded-2xl p-3 text-sm ${itemsMsg.type === 'success' ? 'bg-gold-50 text-gold-800' : 'bg-rose-50 text-rose-800'}`}>
                   {itemsMsg.text}
                 </div>
               )}
@@ -1445,7 +1445,7 @@ export default function HomePage() {
                   ) : allItems.map(item => (
                     <tr key={`${item.category}-${item.id}`} className="odd:bg-white even:bg-slate-50">
                       <td className="border border-slate-200 px-3 py-2.5">
-                        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${item.category === 'plus' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${item.category === 'plus' ? 'bg-gold-100 text-gold-800' : 'bg-rose-100 text-rose-800'}`}>
                           {item.category === 'plus' ? 'زیادە' : 'کەمبوو'}
                         </span>
                       </td>
