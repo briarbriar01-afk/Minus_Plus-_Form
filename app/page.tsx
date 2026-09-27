@@ -75,7 +75,7 @@ type AllItem = {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const STATUS: Record<string, { label: string; bg: string; text: string }> = {
-  new:      { label: 'نوێ',           bg: 'bg-sky-100',     text: 'text-sky-800' },
+  new:      { label: 'نوێ',           bg: 'bg-sky-100',      text: 'text-sky-800' },
   sent:     { label: 'ناردراو',       bg: 'bg-amber-100',   text: 'text-amber-800' },
   reviewed: { label: 'هەڵسەنگاندراو', bg: 'bg-violet-100',  text: 'text-violet-800' },
   approved: { label: 'پەسەندکراو',    bg: 'bg-emerald-100', text: 'text-emerald-800' },
@@ -98,6 +98,13 @@ const defaultRow = (category: ItemCategory): ItemRow => ({
 });
 
 const blankForm = { organization: '', rows: [defaultRow('plus')], messageToAdmin: '' };
+
+const DRAFT_KEY_PREFIX = 'plusminus_form_draft_';
+
+const isFormEmpty = (f: typeof blankForm) =>
+  !f.organization.trim() &&
+  !f.messageToAdmin.trim() &&
+  f.rows.every(r => !r.itemType.trim() && !r.itemName.trim() && !r.quantity.trim() && !r.notes.trim() && !r.systemCode.trim());
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -135,6 +142,8 @@ export default function HomePage() {
   const [formState, setFormState] = useState(blankForm);
   const [submitMsg, setSubmitMsg] = useState<Msg>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(false);
+  const draftLoadedForUserRef = useRef<string | null>(null);
 
   // ── Success screen ────────────────────────────────────────────────────────
   const [lastFormId, setLastFormId] = useState<string | null>(null);
@@ -148,7 +157,6 @@ export default function HomePage() {
   const [formDetailId, setFormDetailId] = useState<string | null>(null);
   const [selectedForm, setSelectedForm] = useState<FormDetail | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
-  const [isPdfLoading, setIsPdfLoading] = useState(false);
   const a4Ref = useRef<HTMLDivElement>(null);
 
   // ── Admin: direct items ───────────────────────────────────────────────────
@@ -183,6 +191,43 @@ export default function HomePage() {
     if (activePage === 'myForms' || activePage === 'kanban') fetchForms();
     if (activePage === 'items') fetchAllItems();
   }, [user, activePage]);
+
+  // ── Restore an in-progress draft (once per signed-in user) ───────────────────
+  useEffect(() => {
+    if (!user || draftLoadedForUserRef.current === user.id) return;
+    draftLoadedForUserRef.current = user.id;
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY_PREFIX + user.id);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      const rows: ItemRow[] = Array.isArray(saved.rows) && saved.rows.length > 0
+        ? saved.rows.map((r: any) => ({ ...r, image: null, imageUrl: '' }))
+        : [defaultRow('plus')];
+      const restored = { organization: saved.organization ?? '', messageToAdmin: saved.messageToAdmin ?? '', rows };
+      if (!isFormEmpty(restored)) {
+        setFormState(restored);
+        setDraftRestored(true);
+      }
+    } catch {
+      // ignore corrupt/unreadable draft
+    }
+  }, [user]);
+
+  // ── Persist the in-progress form as a draft on every change ─────────────────
+  useEffect(() => {
+    if (!user || draftLoadedForUserRef.current !== user.id) return;
+    const key = DRAFT_KEY_PREFIX + user.id;
+    if (isFormEmpty(formState)) {
+      localStorage.removeItem(key);
+      return;
+    }
+    const serializable = {
+      organization: formState.organization,
+      messageToAdmin: formState.messageToAdmin,
+      rows: formState.rows.map(({ image, imageUrl, ...rest }) => rest),
+    };
+    localStorage.setItem(key, JSON.stringify(serializable));
+  }, [user, formState]);
 
   // Auto-print once form detail is loaded and ready
   useEffect(() => {
@@ -260,6 +305,8 @@ export default function HomePage() {
     await supabase.auth.signOut();
     setUser(null);
     setFormState(blankForm);
+    setDraftRestored(false);
+    draftLoadedForUserRef.current = null;
     setForms([]);
     setActivePage('form');
   };
@@ -280,28 +327,6 @@ export default function HomePage() {
     if (!isSuperAdmin) q = q.eq('created_by', user.id);
     const { data } = await q;
     setForms(data ?? []);
-  };
-
-  // ── Download A4 as PDF ────────────────────────────────────────────────────
-  const downloadPdf = async () => {
-    if (!a4Ref.current || !selectedForm) return;
-    setIsPdfLoading(true);
-    try {
-      // Dynamic import keeps html2pdf.js out of the SSR bundle
-      const html2pdf = ((await import('html2pdf.js')) as any).default; // eslint-disable-line
-      await html2pdf()
-        .set({
-          margin: [8, 8, 8, 8],
-          filename: `inventory-form-${selectedForm.id}.pdf`,
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, logging: false },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        })
-        .from(a4Ref.current)
-        .save();
-    } finally {
-      setIsPdfLoading(false);
-    }
   };
 
   // ── Open A4 detail view ───────────────────────────────────────────────────
@@ -420,6 +445,7 @@ export default function HomePage() {
 
       setLastFormId(formRecord.id);
       setFormState(blankForm);
+      setDraftRestored(false);
       setActivePage('success');
     } catch (e) {
       // Roll back the form record so it doesn't appear in the list without items
@@ -559,13 +585,18 @@ export default function HomePage() {
   if (!user) {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
-        <div className="w-full max-w-md rounded-[28px] border border-slate-200 bg-white p-8 shadow-sm rtl">
-          <h1 className="text-xl font-bold text-slate-900 mb-6">چوونە ژوورەوە یان دروستکردن</h1>
+        <div className="w-full max-w-md overflow-hidden rounded-[28px] border border-gold-200 bg-white shadow-sm rtl">
+          <div className="h-1.5 w-full bg-gradient-to-l from-kdpgreen-600 via-gold-400 to-rose-600" />
+          <div className="p-8">
+          <div className="mb-6 flex items-center gap-3">
+            <img src="/kdp-logo.png" alt="KDP" className="h-14 w-14 shrink-0 object-contain" />
+            <h1 className="text-xl font-bold text-slate-900">چوونە ژوورەوە یان دروستکردن</h1>
+          </div>
           <div className="grid gap-4">
             <div className="flex gap-2">
               {(['login', 'signup'] as const).map(mode => (
                 <button key={mode} type="button" onClick={() => setAuthMode(mode)}
-                  className={`flex-1 rounded-full px-4 py-2 text-sm font-semibold transition ${authMode === mode ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>
+                  className={`flex-1 rounded-full px-4 py-2 text-sm font-semibold transition ${authMode === mode ? 'bg-gold-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>
                   {mode === 'login' ? 'چوونە ژوورەوە' : 'دروستکردنی ئەکاونت'}
                 </button>
               ))}
@@ -573,13 +604,13 @@ export default function HomePage() {
             <label className="block text-sm font-medium text-slate-700">
               ئیمەیڵ
               <input type="email" value={authEmail} onChange={e => setAuthEmail(e.target.value)}
-                className="mt-1 w-full rounded-2xl border border-slate-300 px-4 py-3 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100" />
+                className="mt-1 w-full rounded-2xl border border-slate-300 px-4 py-3 outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-100" />
             </label>
             <label className="block text-sm font-medium text-slate-700">
               تێپەڕەوشە
               <input type="password" value={authPassword} onChange={e => setAuthPassword(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleAuth()}
-                className="mt-1 w-full rounded-2xl border border-slate-300 px-4 py-3 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100" />
+                className="mt-1 w-full rounded-2xl border border-slate-300 px-4 py-3 outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-100" />
             </label>
             {authMsg && (
               <div className={`rounded-2xl p-3 text-sm ${authMsg.type === 'success' ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'}`}>
@@ -587,9 +618,10 @@ export default function HomePage() {
               </div>
             )}
             <button type="button" onClick={handleAuth}
-              className="rounded-3xl bg-sky-600 px-5 py-3 font-semibold text-white transition hover:bg-sky-700">
+              className="rounded-3xl bg-gold-600 px-5 py-3 font-semibold text-white transition hover:bg-gold-700">
               {authMode === 'login' ? 'چوونە ژوورەوە' : 'دروستکردنی ئەکاونت'}
             </button>
+          </div>
           </div>
         </div>
       </div>
@@ -602,14 +634,18 @@ export default function HomePage() {
       <div className="mx-auto w-full max-w-[1200px]">
 
         {/* ── Header ── */}
-        <header className="no-print mb-5 rounded-[26px] border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p className="text-xs text-slate-500 mb-0.5">سیستەمی جەردی کەل و پەل</p>
-              <h1 className="text-xl font-bold text-slate-900">فۆرمی جیاوازییەکانی جەرد</h1>
+        <header className="no-print mb-5 overflow-hidden rounded-[26px] border border-gold-200 bg-white shadow-sm">
+          <div className="h-1.5 w-full bg-gradient-to-l from-kdpgreen-600 via-gold-400 to-rose-600" />
+          <div className="flex flex-wrap items-center justify-between gap-4 p-5">
+            <div className="flex items-center gap-3">
+              <img src="/kdp-logo.png" alt="KDP" className="h-12 w-12 shrink-0 object-contain" />
+              <div>
+                <p className="text-xs text-slate-500 mb-0.5">سیستەمی جەردی کەل و پەل</p>
+                <h1 className="text-xl font-bold text-slate-900">فۆرمی جیاوازییەکانی جەرد</h1>
+              </div>
             </div>
             <div className="flex items-center gap-3">
-              <div className="rounded-2xl bg-slate-100 px-4 py-2.5 text-sm">
+              <div className="rounded-2xl bg-gold-50 px-4 py-2.5 text-sm border border-gold-100">
                 <div className="font-medium text-slate-800">{user.email}</div>
                 <div className="text-xs text-slate-500">{isSuperAdmin ? 'سوپەر ئەدمین' : 'کارمەند'}</div>
               </div>
@@ -635,7 +671,7 @@ export default function HomePage() {
               onClick={() => goTo(item.key as PageView)}
               className={`rounded-2xl border px-4 py-3.5 text-right transition ${
                 activePage === item.key
-                  ? 'border-sky-500 bg-sky-50 shadow-sm'
+                  ? 'border-gold-500 bg-gold-50 shadow-sm'
                   : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
               }`}>
               <div className="font-semibold text-sm text-slate-900">{item.label}</div>
@@ -649,6 +685,22 @@ export default function HomePage() {
         {/* ════════════════════════════════════════════════════════════════ */}
         {activePage === 'form' && (
           <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm print:border-0 print:shadow-none print:p-0">
+            {draftRestored && (
+              <div className="no-print mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gold-200 bg-gold-50 px-4 py-3 text-sm text-gold-800">
+                <span>
+                  دراسکی پێشووت گەڕایەوە — بەردەوامبە لە پڕکردنەوە. (تێبینی: وێنەکان پاشەکەوت نەکراون، تکایە دووبارە زیادیان بکە.)
+                </span>
+                <button type="button"
+                  onClick={() => {
+                    if (user) localStorage.removeItem(DRAFT_KEY_PREFIX + user.id);
+                    setFormState(blankForm);
+                    setDraftRestored(false);
+                  }}
+                  className="shrink-0 rounded-xl border border-gold-300 bg-white px-3 py-1.5 text-xs font-semibold text-gold-800 hover:bg-gold-100 transition">
+                  دەستپێکردنی فۆرمی نوێ
+                </button>
+              </div>
+            )}
             <div className="no-print mb-6 flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-lg font-bold text-slate-900">فۆرمی تازەی جیاوازی جەرد</h2>
               <div className="flex gap-2">
@@ -670,7 +722,7 @@ export default function HomePage() {
                 <input type="text" value={formState.organization}
                   onChange={e => setFormState(p => ({ ...p, organization: e.target.value }))}
                   placeholder="ناوی ئۆرگان بنووسە"
-                  className="mt-1.5 w-full rounded-2xl border border-slate-300 px-4 py-3 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100" />
+                  className="mt-1.5 w-full rounded-2xl border border-slate-300 px-4 py-3 outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-100" />
               </label>
 
               {/* Plus rows table */}
@@ -690,15 +742,15 @@ export default function HomePage() {
                         <tr key={row.id} className="bg-white">
                           <td className="border border-emerald-200 p-1.5">
                             <input value={row.itemType} onChange={e => updateRow(row.id, { itemType: e.target.value })}
-                              className="w-full min-w-[120px] rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-sky-500" />
+                              className="w-full min-w-[120px] rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-gold-500" />
                           </td>
                           <td className="border border-emerald-200 p-1.5">
                             <input value={row.itemName} onChange={e => updateRow(row.id, { itemName: e.target.value })}
-                              className="w-full min-w-[140px] rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-sky-500" />
+                              className="w-full min-w-[140px] rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-gold-500" />
                           </td>
                           <td className="border border-emerald-200 p-1.5">
                             <input type="number" min={0} value={row.quantity} onChange={e => updateRow(row.id, { quantity: e.target.value })}
-                              className="w-24 rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-sky-500" />
+                              className="w-24 rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-gold-500" />
                           </td>
                           <td className="border border-emerald-200 p-1.5">
                             <input type="file" accept="image/*"
@@ -711,7 +763,7 @@ export default function HomePage() {
                           </td>
                           <td className="border border-emerald-200 p-1.5">
                             <input value={row.notes} onChange={e => updateRow(row.id, { notes: e.target.value })}
-                              className="w-full min-w-[120px] rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-sky-500" />
+                              className="w-full min-w-[120px] rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-gold-500" />
                           </td>
                           <td className="border border-emerald-200 p-1.5 text-center">
                             <button onClick={() => removeRow(row.id)}
@@ -743,23 +795,23 @@ export default function HomePage() {
                         <tr key={row.id} className="bg-white">
                           <td className="border border-rose-200 p-1.5">
                             <input value={row.itemType} onChange={e => updateRow(row.id, { itemType: e.target.value })}
-                              className="w-full min-w-[120px] rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-sky-500" />
+                              className="w-full min-w-[120px] rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-gold-500" />
                           </td>
                           <td className="border border-rose-200 p-1.5">
                             <input value={row.itemName} onChange={e => updateRow(row.id, { itemName: e.target.value })}
-                              className="w-full min-w-[140px] rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-sky-500" />
+                              className="w-full min-w-[140px] rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-gold-500" />
                           </td>
                           <td className="border border-rose-200 p-1.5">
                             <input type="number" min={0} value={row.quantity} onChange={e => updateRow(row.id, { quantity: e.target.value })}
-                              className="w-24 rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-sky-500" />
+                              className="w-24 rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-gold-500" />
                           </td>
                           <td className="border border-rose-200 p-1.5">
                             <input value={row.systemCode} onChange={e => updateRow(row.id, { systemCode: e.target.value })}
-                              className="w-full min-w-[120px] rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-sky-500" />
+                              className="w-full min-w-[120px] rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-gold-500" />
                           </td>
                           <td className="border border-rose-200 p-1.5">
                             <input value={row.notes} onChange={e => updateRow(row.id, { notes: e.target.value })}
-                              className="w-full min-w-[120px] rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-sky-500" />
+                              className="w-full min-w-[120px] rounded-xl border border-slate-300 px-3 py-2 outline-none focus:border-gold-500" />
                           </td>
                           <td className="border border-rose-200 p-1.5 text-center">
                             <button onClick={() => removeRow(row.id)}
@@ -780,7 +832,7 @@ export default function HomePage() {
                 <textarea rows={3} value={formState.messageToAdmin}
                   onChange={e => setFormState(p => ({ ...p, messageToAdmin: e.target.value }))}
                   placeholder="پەیامێکت بنووسە..."
-                  className="mt-1.5 w-full rounded-2xl border border-slate-300 px-4 py-3 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100" />
+                  className="mt-1.5 w-full rounded-2xl border border-slate-300 px-4 py-3 outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-100" />
               </label>
 
               {submitMsg && (
@@ -792,7 +844,7 @@ export default function HomePage() {
               {/* Action buttons */}
               <div className="grid gap-3 sm:grid-cols-5 no-print">
                 <button type="button" onClick={() => submitForm('new')} disabled={isSaving}
-                  className="rounded-2xl bg-sky-600 px-5 py-3 font-semibold text-white hover:bg-sky-700 disabled:bg-slate-400 transition">
+                  className="rounded-2xl bg-gold-600 px-5 py-3 font-semibold text-white hover:bg-gold-700 disabled:bg-slate-400 transition">
                   {isSaving ? 'چاوەڕوانبکە...' : 'پاشەکەوتکردن (ڕەشنووس)'}
                 </button>
                 <button type="button" onClick={() => submitForm('sent')} disabled={isSaving}
@@ -800,7 +852,12 @@ export default function HomePage() {
                   {isSaving ? 'چاوەڕوانبکە...' : 'ناردن بۆ سوپەرئەدمین'}
                 </button>
                 <button type="button"
-                  onClick={() => { setFormState(blankForm); setSubmitMsg(null); }}
+                  onClick={() => {
+                    setFormState(blankForm);
+                    setSubmitMsg(null);
+                    setDraftRestored(false);
+                    if (user) localStorage.removeItem(DRAFT_KEY_PREFIX + user.id);
+                  }}
                   className="rounded-2xl border border-slate-300 bg-white px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50 transition">
                   پاككردنەوە
                 </button>
@@ -812,13 +869,13 @@ export default function HomePage() {
                   </svg>
                   Excel
                 </button>
-                {/* Print current form */}
+                {/* PDF export */}
                 <button type="button" onClick={() => window.print()}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-800 px-5 py-3 font-semibold text-white hover:bg-slate-900 transition">
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                  className="bg-[#0e9488] hover:bg-teal-700 text-white px-6 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-sm">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
                   </svg>
-                  چاپکردن
+                  <span>داگرتنی PDF</span>
                 </button>
               </div>
             </div>
@@ -941,7 +998,7 @@ export default function HomePage() {
             <div className="flex flex-wrap justify-center gap-3">
               <button type="button"
                 onClick={() => lastFormId && openFormDetail(lastFormId, 'success')}
-                className="rounded-2xl bg-sky-600 px-6 py-3 font-semibold text-white hover:bg-sky-700">
+                className="rounded-2xl bg-gold-600 px-6 py-3 font-semibold text-white hover:bg-gold-700">
                 بینینی فۆرم (A4)
               </button>
               <button type="button"
@@ -977,7 +1034,7 @@ export default function HomePage() {
               </button>
             </div>
             {detailLoading && (
-              <div className="mb-4 flex items-center gap-2 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-700">
+              <div className="mb-4 flex items-center gap-2 rounded-2xl border border-gold-200 bg-gold-50 px-4 py-3 text-sm text-gold-700">
                 <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
@@ -1002,7 +1059,7 @@ export default function HomePage() {
                       </td>
                     </tr>
                   ) : forms.map(form => (
-                    <tr key={form.id} className="odd:bg-white even:bg-slate-50 hover:bg-sky-50 transition-colors">
+                    <tr key={form.id} className="odd:bg-white even:bg-slate-50 hover:bg-gold-50 transition-colors">
                       {/* ── Action buttons — first column ── */}
                       <td className="border border-slate-200 px-3 py-2.5 text-center whitespace-nowrap">
                         <div className="inline-flex gap-2">
@@ -1011,7 +1068,7 @@ export default function HomePage() {
                             onClick={() => openFormDetail(form.id, 'myForms', false)}
                             disabled={detailLoading}
                             title="بینینی فۆرم"
-                            className="inline-flex items-center gap-1.5 rounded-xl bg-sky-600 px-3 py-2 text-xs font-semibold text-white hover:bg-sky-700 disabled:opacity-50 transition"
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-gold-600 px-3 py-2 text-xs font-semibold text-white hover:bg-gold-700 disabled:opacity-50 transition"
                           >
                             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -1066,7 +1123,7 @@ export default function HomePage() {
         {/* ════════════════════════════════════════════════════════════════ */}
         {activePage === 'formDetail' && detailLoading && (
           <div className="flex items-center justify-center py-24 text-slate-500 text-sm gap-3">
-            <svg className="animate-spin h-5 w-5 text-sky-600" fill="none" viewBox="0 0 24 24">
+            <svg className="animate-spin h-5 w-5 text-gold-600" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
             </svg>
@@ -1268,7 +1325,7 @@ export default function HomePage() {
                           <p className="text-xs text-slate-400 mt-0.5">{formatDate(form.created_at)}</p>
                           <div className="mt-3 flex flex-wrap gap-1.5">
                             <button onClick={() => openFormDetail(form.id, 'kanban')}
-                              className="rounded-full bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-700">
+                              className="rounded-full bg-gold-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-gold-700">
                               بینین
                             </button>
                             {STATUS_FLOW.filter(s => s !== key).map(s => (

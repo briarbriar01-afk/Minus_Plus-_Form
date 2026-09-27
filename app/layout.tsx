@@ -4,6 +4,7 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'فۆرمی جیاوازییەکانی جەرد',
   description: 'تۆمارکردنی کەل و پەلی زیادە و کەمبوو بە Supabase و چاپی A4.',
+  icons: { icon: '/kdp-logo.png' },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
